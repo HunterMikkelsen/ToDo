@@ -20,12 +20,16 @@ namespace ToDo.Controllers
 		}
 
 		// GET: TODOItems
-		public async Task<IActionResult> Index(string searchString)
+		public async Task<IActionResult> Index(string selectedPriority, string searchString)
 		{
 			if(_context.TODOItem == null)
 			{
 				return Problem("Entity set 'ToDoContext.TODOItem'  is null.");
 			}
+
+			IQueryable<Priority> priorityQuery = from m in _context.TODOItem
+												   orderby m.Priority
+												   select m.Priority;
 
 			var items = from i in _context.TODOItem
 						 select i;
@@ -33,7 +37,17 @@ namespace ToDo.Controllers
 			{
 				items = items.Where(s => s.Title!.ToUpper().Contains(searchString.ToUpper()));
 			}
-			return View(await items.ToListAsync());
+			if (!String.IsNullOrEmpty(selectedPriority) && Enum.TryParse(selectedPriority, out Priority result))
+			{
+				items = items.Where(x => x.Priority == result);
+			}
+
+			var itemPriorityVM = new ItemPriorityViewModel
+			{
+				Priorities = new SelectList(await priorityQuery.Distinct().ToListAsync()),
+				Items = await items.ToListAsync()
+			};
+			return View(itemPriorityVM);
 		}
 
 		// GET: TODOItems/Details/5
