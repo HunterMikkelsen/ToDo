@@ -2,9 +2,17 @@
 using Microsoft.Extensions.DependencyInjection;
 using ToDo.Data;
 using ToDo.Models;
+
+
+
+
 var builder = WebApplication.CreateBuilder(args);
+//builder.Services.AddDbContext<ToDoContext>(options =>
+//	options.UseSqlServer(builder.Configuration.GetConnectionString("ToDoContext") ?? throw new InvalidOperationException("Connection string 'ToDoContext' not found.")));
+builder.Configuration.AddUserSecrets<Program>();
+// Use NpgSql to connect to PostGres DB
 builder.Services.AddDbContext<ToDoContext>(options =>
-	options.UseSqlServer(builder.Configuration.GetConnectionString("ToDoContext") ?? throw new InvalidOperationException("Connection string 'ToDoContext' not found.")));
+	options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.")));
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
