@@ -141,6 +141,29 @@ namespace ToDo.Controllers
 			return View(tODOItem);
 		}
 
+		[HttpPost]
+		[ValidateAntiForgeryToken]
+		public async Task<IActionResult> ChangeTaskStatus(int id, Status newStatus)
+		{
+			var item = await _context.TODOItem.FindAsync(id);
+			if (item == null)
+			{
+				return NotFound();
+			}
+
+			item.Status = newStatus;
+			_context.Update(item);
+			int numAffected = await _context.SaveChangesAsync();
+
+			if(numAffected == 1)
+			{
+				var response = Json(new { success = true });
+				return Ok(response);
+			}
+			return NotFound();
+		}
+
+
 		// GET: TODOItems/Delete/5
 		public async Task<IActionResult> Delete(int? id)
 		{

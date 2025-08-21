@@ -1,13 +1,15 @@
-﻿@model ToDo.Models.ItemPriorityViewModel
+﻿@using System.Text.Json
+@model ToDo.Models.ItemPriorityViewModel
 
 @{
     ViewData["Title"] = "Home";
 }
+@Html.AntiForgeryToken()
 
 <h1>To Do</h1>
 
 <p>
-    <a asp-action="Create">Create New</a>
+    <a class="btn btn-primary" asp-action="Create">New Task</a>
 </p>
 <form asp-controller="TODOItems" asp-actions="Index" method="get">
     <p>
@@ -19,27 +21,35 @@
         <input type="submit" value="Filter" />
     </p>
 </form>
-<table class="table">
+<table class="table table-hover" id="taskTable">
     <thead>
         <tr>
-            <th>
+            <th scope="col" class="col-1">
+                Complete
+            </th>
+            <th scope="col" class="col-2">
                 @Html.DisplayNameFor(model => model.Items[0]!.Title)
             </th>
-            <th>
+            <th scope="col" class="col-5">
                 @Html.DisplayNameFor(model => model.Items[0]!.Description)
             </th>
-            <th>
+            <th scope="col" class="col-1">
                 @Html.DisplayNameFor(model => model.Items[0]!.Priority)
             </th>
-            <th>
+            <th scope="col" class="col-1">
                 @Html.DisplayNameFor(model => model.Items[0]!.Status)
             </th>
-            <th></th>
+            <th scope="col" class="col-2"></th>
         </tr>
     </thead>
     <tbody>
 @foreach (var item in Model.Items!.Where(x => x.Status != Status.Completed)) {
-        <tr>
+        <tr class="align-middle">
+            <td>
+                <div class="d-flex justify-content-center">
+                    <input type="checkbox" class="complete-checkbox" data-id="@item.Id" />
+                </div>
+            </td>
             <td>
                 @Html.DisplayFor(modelItem => item.Title)
             </td>
@@ -61,48 +71,99 @@
 }
     </tbody>
 </table>
-
-<h2>Completed Tasks</h2>
-<table class="table">
-    <thead>
-        <tr>
-            <th>
-                @Html.DisplayNameFor(model => model.Items[0]!.Title)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.Items[0]!.Description)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.Items[0]!.Priority)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.Items[0]!.Status)
-            </th>
-            <th></th>
-        </tr>
-    </thead>
-    <tbody>
-        @foreach (var item in Model.Items!.Where(x => x.Status == Status.Completed))
-        {
+@{
+    IEnumerable<TODOItem>? completedTasks = Model.Items!.Where(x => x.Status == Status.Completed);
+}
+<div id="completedTasksSection">
+    <h2>Completed Tasks</h2>
+    <table class="table table-hover" id="completedTasksTable">
+        <thead>
             <tr>
-                <td>
-                    @Html.DisplayFor(modelItem => item.Title)
-                </td>
-                <td>
-                    @Html.DisplayFor(modelItem => item.Description)
-                </td>
-                <td>
-                    @Html.DisplayFor(modelItem => item.Priority)
-                </td>
-                <td>
-                    @Html.DisplayFor(modelItem => item.Status)
-                </td>
-                <td>
-                    <a asp-action="Edit" asp-route-id="@item.Id">Edit</a> |
-                    <a asp-action="Details" asp-route-id="@item.Id">Details</a> |
-                    <a asp-action="Delete" asp-route-id="@item.Id">Delete</a>
-                </td>
+                <th scope="col" class="col-1">
+                    Complete
+                </th>
+                <th scope="col" class="col-2">
+                    @Html.DisplayNameFor(model => model.Items[0]!.Title)
+                </th>
+                <th scope="col" class="col-5">
+                    @Html.DisplayNameFor(model => model.Items[0]!.Description)
+                </th>
+                <th scope="col" class="col-1">
+                    @Html.DisplayNameFor(model => model.Items[0]!.Priority)
+                </th>
+                <th scope="col" class="col-1">
+                    @Html.DisplayNameFor(model => model.Items[0]!.Status)
+                </th>
+                <th scope="col" class="col-2"></th>
             </tr>
-        }
-    </tbody>
-</table>
+        </thead>
+        <tbody>
+            @foreach (var item in completedTasks)
+            {
+                <tr class="align-middle">
+                    <td>
+                        <div class="d-flex justify-content-center">
+                            <input type="checkbox" class="complete-checkbox" data-id="@item.Id" @(item.Status == Status.Completed ? "checked" : "") />
+                        </div>
+                    </td>
+                    <td>
+                        @Html.DisplayFor(modelItem => item.Title)
+                    </td>
+                    <td>
+                        @Html.DisplayFor(modelItem => item.Description)
+                    </td>
+                    <td>
+                        @Html.DisplayFor(modelItem => item.Priority)
+                    </td>
+                    <td>
+                        @Html.DisplayFor(modelItem => item.Status)
+                    </td>
+                    <td>
+                        <a asp-action="Edit" asp-route-id="@item.Id">Edit</a> |
+                        <a asp-action="Details" asp-route-id="@item.Id">Details</a> |
+                        <a asp-action="Delete" asp-route-id="@item.Id">Delete</a>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+<script>
+    $(document).ready(function() {
+        $('.complete-checkbox').on('change', function() {
+            var itemId = $(this).data('id');
+            var $row = $(this).closest('tr');
+            var newStatus;
+            if (this.checked) {
+                newStatus = @((int)Status.Completed);
+            }
+            else{
+                newStatus = @((int)Status.InProgress);
+            }
+
+            $.ajax({
+                url: "@Url.Action("ChangeTaskStatus","TODOItems")",
+                type: 'POST',
+                data: { id: itemId, newStatus: newStatus },
+                headers: {
+                    'RequestVerificationToken': $('input[name="__RequestVerificationToken"]').val() // for anti-forgery
+                },
+                success: function(response) {
+                    if(newStatus === @((int)Status.Completed))
+                    {
+                        $('#completedTasksTable tbody').append($row);
+                    }
+                    else
+                    {
+                        $('#taskTable tbody').append($row);
+                    }
+                    //$row.find('.complete-checkbox').remove();
+                },
+                error: function (xhr, status, error) {
+                    console.error("Error:", error);
+                }
+            });
+        });
+    });
+</script>
